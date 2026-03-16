@@ -1,213 +1,54 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Smart Lanyard GPS</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      font-family: Arial;
-      background: #0a0a1a;
-      color: white;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 30px 20px;
-    }
-    h2 { color: #00d4aa; margin-bottom: 5px; font-size: 22px; }
-    p  { color: #888; font-size: 13px; margin-bottom: 25px; }
-    .card {
-      background: #16213e;
-      border-radius: 15px;
-      padding: 20px;
-      width: 100%;
-      max-width: 400px;
-      margin-bottom: 15px;
-    }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid #1a2a4a;
-      font-size: 14px;
-    }
-    .label { color: #888; }
-    .value { color: #00d4aa; font-weight: bold; }
-    .btn {
-      width: 100%;
-      max-width: 400px;
-      padding: 15px;
-      font-size: 16px;
-      font-weight: bold;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      margin-bottom: 10px;
-    }
-    .btn-start { background: #00d4aa; color: #0a0a1a; }
-    .btn-stop  { background: #ff4444; color: white;   }
-    .status {
-      width: 100%;
-      max-width: 400px;
-      padding: 15px;
-      border-radius: 12px;
-      text-align: center;
-      font-size: 14px;
-      margin-bottom: 15px;
-    }
-    .ok   { background: #0d2b1a; color: #00d4aa; border: 1px solid #00d4aa; }
-    .err  { background: #2b0d0d; color: #ff4444; border: 1px solid #ff4444; }
-    .wait { background: #1a1a2b; color: #888;    border: 1px solid #333;    }
-  </style>
+  <title>Live Location Sender</title>
 </head>
 <body>
-
-  <h2>Smart Lanyard GPS</h2>
-  <p>Uses Google API for accurate indoor location</p>
-
-  <div class="status wait" id="statusBox">
-    Press Start to begin GPS tracking
-  </div>
-
-  <div class="card">
-    <div class="row">
-      <span class="label">Latitude</span>
-      <span class="value" id="lat">--</span>
-    </div>
-    <div class="row">
-      <span class="label">Longitude</span>
-      <span class="value" id="lng">--</span>
-    </div>
-    <div class="row">
-      <span class="label">Accuracy</span>
-      <span class="value" id="acc">--</span>
-    </div>
-    <div class="row">
-      <span class="label">Method</span>
-      <span class="value" id="method">--</span>
-    </div>
-    <div class="row">
-      <span class="label">Last Sent</span>
-      <span class="value" id="time">--</span>
-    </div>
-    <div class="row">
-      <span class="label">Send Count</span>
-      <span class="value" id="count">0</span>
-    </div>
-  </div>
-
-  <button class="btn btn-start" onclick="startTracking()">
-    Start GPS Tracking
-  </button>
-  <button class="btn btn-stop" onclick="stopTracking()">
-    Stop Tracking
-  </button>
+  <h2>Sending Live Location...</h2>
+  <p id="status">Starting...</p>
 
   <script>
-    // Your credentials
-    const GOOGLE_API_KEY = "AIzaSyAWSJt4AoJKE2s3_90Bq1p8xHyX4dXfqs0";
-    const SCRIPT_URL     = "https://script.google.com/macros/s/AKfycbxQ3Ovj7IzvhyzvNvV14pgh3tg9fuqKHM84pXoHdkgqaGo4Jll-2xBOTeZ_TS6O0iLI8Q/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQ3Ovj7IzvhyzvNvV14pgh3tg9fuqKHM84pXoHdkgqaGo4Jll-2xBOTeZ_TS6O0iLI8Q/exec";
 
-    let trackInterval = null;
-    let sendCount     = 0;
-
-    function setStatus(msg, type) {
-      var box       = document.getElementById("statusBox");
-      box.className = "status " + type;
-      box.textContent = msg;
+    function sendLocation(lat, lng) {
+      fetch(`${WEB_APP_URL}?phonelat=${lat}&phonelng=${lng}`)
+        .then(res => res.text())
+        .then(data => {
+          document.getElementById("status").innerText =
+            `Sent: ${lat}, ${lng} | Response: ${data}`;
+        })
+        .catch(err => {
+          document.getElementById("status").innerText =
+            "Error sending location: " + err;
+        });
     }
 
     function startTracking() {
-      setStatus("Getting location...", "wait");
-      getLocation();
-      trackInterval = setInterval(getLocation, 15000);
-    }
-
-    function stopTracking() {
-      if (trackInterval) { clearInterval(trackInterval); trackInterval = null; }
-      setStatus("Tracking stopped", "err");
-    }
-
-    // STEP 1 — Try phone GPS first
-    function getLocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          function(pos) {
-            // Phone GPS worked
-            handleLocation(
-              pos.coords.latitude,
-              pos.coords.longitude,
-              pos.coords.accuracy,
-              "Phone GPS"
-            );
-          },
-          function(err) {
-            // Phone GPS failed — fallback to Google API
-            console.log("Phone GPS failed: " + err.message);
-            getGoogleLocation();
-          },
-          { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
-        );
-      } else {
-        // No geolocation — use Google API directly
-        getGoogleLocation();
+      if (!navigator.geolocation) {
+        document.getElementById("status").innerText =
+          "Geolocation not supported on this device.";
+        return;
       }
-    }
 
-    // STEP 2 — Google Geolocation API (works indoors perfectly)
-    function getGoogleLocation() {
-      setStatus("Using Google API location...", "wait");
-
-      var url = "https://www.googleapis.com/geolocation/v1/geolocate?key=" + GOOGLE_API_KEY;
-
-      fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ considerIp: true })
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.location) {
-          handleLocation(
-            data.location.lat,
-            data.location.lng,
-            data.accuracy,
-            "Google API"
-          );
-        } else {
-          setStatus("Google API error: " + JSON.stringify(data), "err");
+      navigator.geolocation.watchPosition(
+        function(position) {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          sendLocation(lat, lng);
+        },
+        function(error) {
+          document.getElementById("status").innerText =
+            "Location error: " + error.message;
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 10000
         }
-      })
-      .catch(function(err) {
-        setStatus("All location methods failed", "err");
-      });
+      );
     }
 
-    // STEP 3 — Send location to Apps Script
-    function handleLocation(lat, lng, accuracy, method) {
-      lat = parseFloat(lat).toFixed(6);
-      lng = parseFloat(lng).toFixed(6);
-      accuracy = Math.round(accuracy);
-
-      document.getElementById("lat").textContent    = lat;
-      document.getElementById("lng").textContent    = lng;
-      document.getElementById("acc").textContent    = "+-" + accuracy + "m";
-      document.getElementById("method").textContent = method;
-      document.getElementById("time").textContent   = new Date().toLocaleTimeString();
-
-      // Send to Google Sheets via Apps Script
-      fetch(SCRIPT_URL + "?phonelat=" + lat + "&phonelng=" + lng)
-        .then(function(r) { return r.text(); })
-        .then(function(t) {
-          sendCount++;
-          document.getElementById("count").textContent = sendCount;
-          setStatus("Location sent via " + method + " (+-" + accuracy + "m)", "ok");
-        })
-        .catch(function(err) {
-          setStatus("Send failed: " + err.message, "err");
-        });
-    }
+    startTracking();
   </script>
 </body>
 </html>
